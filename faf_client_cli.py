@@ -35,7 +35,7 @@ except ImportError:
     readline = Dummy()
 
 USER_AGENT = "askaholics-faf-cli"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 OUTPUT_WIDTH = 80
 
@@ -956,10 +956,26 @@ class FafClient(object):
         await self._gpg_playeroption(player_id, "Color", army)
         await self._gpg_playeroption(player_id, "StartSpot", army)
 
-    @cmd('seq_end_game_1v1')
-    async def _seq_end_game_1v1(self, player1: str, player2: str):
+    @cmd('seq_end_game_1v1_without_result')
+    async def _seq_end_game_1v1_without_result(self, player1: str, player2: str):
         """ Report some game stats and send GameState == Ended. You should run
         `gpg_gameresult` first to prevent the game from being marked as invalid. """
+        await self._gpg_jsonstats(json_stats_1v1(player1, player2))
+        await self._gpg_gamestate("Ended")
+
+    @cmd('seq_requeue_ladder')
+    async def _seq_requeue_ladder(self, username: str, password: str = None):
+        """ Reconnect to the server to reset the player status and queue up ladder ."""
+        await self._disconnect()
+        await self._connect("localhost")
+        await self._seq_login(username, password)
+        await self._command_game_matchmaking("start", "uef", "ladder1v1")
+
+    @cmd('seq_end_game_1v1')
+    async def _seq_end_game_1v1(self, player1: str, player2: str):
+        """ Report some game stats and send GameState == Ended and Army 1 as winner. """
+        await self._gpg_gameresult("1", "victory", "10")
+        await self._gpg_gameresult("2", "defeat", "-10")
         await self._gpg_jsonstats(json_stats_1v1(player1, player2))
         await self._gpg_gamestate("Ended")
 
