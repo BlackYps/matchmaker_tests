@@ -137,27 +137,27 @@ def test_matchmaker(caplog, player_factory):
     med_deviations = statistics.median(deviations)
 
     print()
-    print(f"quality was between {worst_quality} and {best_quality} "
-          f"with average {avg_quality} and 75th percentile {quality_percentile}")
-    print(f"rating disparity was on average {avg_rating_disparity}, median {med_rating_disparity}, "
-          f"90th percentile {rating_disparity_90_percentile} and max {max_rating_disparity}")
-    print(f"rating deviation was on average {avg_deviations}, median {med_deviations}, "
-          f"90th percentile {deviations_90_percentile} and max {max_deviations}")
+    print(f"quality was between {worst_quality:.3f} and {best_quality:.3f} "
+          f"with average {avg_quality:.2f} and 75th percentile {quality_percentile:.2f}")
+    print(f"rating disparity was on average {avg_rating_disparity:.2f}, median {med_rating_disparity:.2f}, "
+          f"90th percentile {rating_disparity_90_percentile:.2f} and max {max_rating_disparity}")
+    print(f"rating deviation was on average {avg_deviations:.2f}, median {med_deviations:.2f}, "
+          f"90th percentile {deviations_90_percentile:.2f} and max {max_deviations:.2f}")
     print(f"number of unmatched players was between {min_length} and {max_length} "
-          f"with average {avg_length} and median {med_length}")
+          f"with average {avg_length:.2f} and median {med_length}")
     print(f"matched {len(wait_time)} searches total")
-    print(f"wait time was on average {avg_wait_time}, median {med_wait_time}, "
+    print(f"wait time was on average {avg_wait_time:.2f}, median {med_wait_time}, "
           f"90th percentile {wait_time_90_percentile} and max {max_wait_time} cycles")
     print(f"matched {len(newbie_wait_time)} newbie searches")
-    print(f"newbie wait time was on average {newbie_avg_wait_time}, median {newbie_med_wait_time}, "
+    print(f"newbie wait time was on average {newbie_avg_wait_time:.2f}, median {newbie_med_wait_time}, "
           f"90th percentile {newbie_wait_time_90_percentile} and max {newbie_max_wait_time} cycles")
     print()
-    print(f"{worst_quality},{best_quality},{avg_quality},{med_quality},{quality_percentile}")
-    print(f" ,{max_rating_disparity},{avg_rating_disparity},{med_rating_disparity},{rating_disparity_90_percentile}")
-    print(f" ,{max_deviations},{avg_deviations},{med_deviations},{deviations_90_percentile}")
-    print(f"{min_length},{max_length},{avg_length},{med_length},")
-    print(f" ,{max_wait_time},{avg_wait_time},{med_wait_time},{wait_time_90_percentile}")
-    print(f" ,{newbie_max_wait_time},{newbie_avg_wait_time},{newbie_med_wait_time},{newbie_wait_time_90_percentile}")
+    print(f"{worst_quality:.2f},{best_quality:.2f},{avg_quality:.2f},{med_quality:.2f},{quality_percentile:.2f}")
+    print(f" ,{max_rating_disparity:.2f},{avg_rating_disparity:.2f},{med_rating_disparity:.2f},{rating_disparity_90_percentile:.2f}")
+    print(f" ,{max_deviations:.2f},{avg_deviations:.2f},{med_deviations:.2f},{deviations_90_percentile:.2f}")
+    print(f"{min_length:.2f},{max_length:.2f},{avg_length:.2f},{med_length:.2f},")
+    print(f" ,{max_wait_time:.2f},{avg_wait_time:.2f},{med_wait_time:.2f},{wait_time_90_percentile:.2f}")
+    print(f" ,{newbie_max_wait_time:.2f},{newbie_avg_wait_time:.2f},{newbie_med_wait_time:.2f},{newbie_wait_time_90_percentile:.2f}")
 
     fig, ax = plt.subplots()
     ax.plot(iteration, queue_len_before_pop, label='length before pop')
