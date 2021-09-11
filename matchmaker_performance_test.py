@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import pytest
 
 from matplotlib.ticker import MultipleLocator
-from sortedcontainers import SortedList
 
 from server import config
 from server.matchmaker.algorithm.bucket_teams import BucketTeamMatchmaker
@@ -82,10 +81,9 @@ def test_matchmaker(caplog, player_factory):
     queue_len_before_pop = []
     created_games = []
     queue_len_after_pop = []
-    wait_time = SortedList()
+    wait_time = []
     newbie_wait_time = []
     queue = []
-    iteration = []
     team_size = 4
     for i in range(2000):
         queue.extend(get_random_searches_list(player_factory, 0, 4, team_size))
@@ -111,12 +109,11 @@ def test_matchmaker(caplog, player_factory):
                 print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
                       f"Quality: {quality_without_bonuses}")
-            wait_time.update(search.failed_matching_attempts
+            wait_time.extend(search.failed_matching_attempts
                              for team in match for search in team.get_original_searches())
             newbie_wait_time.extend(search.failed_matching_attempts
                                     for team in match for search in team.get_original_searches() if search.has_newbie())
         queue = unmatched
-        iteration.append(i)
 
     wait_time_90_percentile = numpy.percentile(wait_time, 90)
     max_wait_time = wait_time.pop()
@@ -174,12 +171,18 @@ def test_matchmaker(caplog, player_factory):
     print(f" ,{newbie_max_wait_time:.2f},{newbie_avg_wait_time:.2f},{newbie_med_wait_time:.2f},{newbie_wait_time_90_percentile:.2f}")
 
     fig, ax = plt.subplots()
-    ax.plot(iteration, queue_len_before_pop, label='length before pop')
-    ax.plot(iteration, created_games, label='created games')
-    ax.plot(iteration, queue_len_after_pop, label='length after pop')
+    rating_disparities.sort()
+    deviations.sort()
+    skill_differences.sort()
+    wait_time.sort()
+    newbie_wait_time.sort()
+    ax.plot(rating_disparities, label='rating disparity')
+    ax.plot(deviations, label='rating deviation')
+    ax.plot(skill_differences, label='skill differences')
+    ax.plot(wait_time, label='wait time')
+    ax.plot(newbie_wait_time, label='newbie wait time')
     ax.grid()
     ax.legend()
-    ax.yaxis.set_major_locator(MultipleLocator(4))
     plt.show()
 
 
