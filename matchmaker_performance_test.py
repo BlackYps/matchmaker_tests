@@ -10,8 +10,9 @@ from matplotlib.ticker import MultipleLocator
 from server import config
 from server.matchmaker.algorithm.bucket_teams import BucketTeamMatchmaker
 from server.matchmaker.algorithm.team_matchmaker import TeamMatchMaker
-from server.matchmaker.search import Match, Search
+from server.matchmaker.search import Match, Search, CombinedSearch
 from tests.conftest import make_player
+from tests.unit_tests.test_matchmaker_algorithm_team_matchmaker import make_searches
 
 
 @pytest.fixture
@@ -45,9 +46,24 @@ def calculate_game_quality(match: Match):
             ratings.append(search.average_rating)
 
     rating_disparity = abs(match[0].cumulative_rating - match[1].cumulative_rating)
-    fairness = max((config.MAXIMUM_RATING_IMBALANCE - rating_disparity) / config.MAXIMUM_RATING_IMBALANCE, 0)
+    fairness = 1 - (rating_disparity / config.MAXIMUM_RATING_IMBALANCE)
     deviation = statistics.pstdev(ratings)
-    uniformity = max((config.MAXIMUM_RATING_DEVIATION - deviation) / config.MAXIMUM_RATING_DEVIATION, 0)
+    uniformity = 1 - (deviation / config.MAXIMUM_RATING_DEVIATION)
+
+    quality = fairness * uniformity
+    return quality, rating_disparity, deviation
+
+
+def calculate_capped_game_quality(match: Match):
+    ratings = []
+    for team in match:
+        for search in team.get_original_searches():
+            ratings.append(search.average_rating)
+
+    rating_disparity = abs(match[0].cumulative_rating - match[1].cumulative_rating)
+    fairness = max(1 - (rating_disparity / config.MAXIMUM_RATING_IMBALANCE), 0)
+    deviation = statistics.pstdev(ratings)
+    uniformity = max(1 - (deviation / config.MAXIMUM_RATING_DEVIATION), 0)
 
     quality = fairness * uniformity
     return quality, rating_disparity, deviation
@@ -198,3 +214,31 @@ def test_player_generation(player_factory):
     ax.hist(x, bins, density=True)
     ax.grid(axis='x')
     plt.show()
+
+
+def test_game_quality_for_2v2_example(player_factory):
+    s = make_searches([2156, -32, 1084, 570], player_factory)
+    team_a = CombinedSearch(*[s[0], s[1]])
+    team_b = CombinedSearch(*[s[2], s[3]])
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2)
+
+    assert game.quality == calculate_capped_game_quality((team_a, team_b))
+    assert game.quality == 0.0
+
+
+def test_game_quality_for_2v2_example2(player_factory):
+    s = make_searches([900, 800, 2000, 1300], player_factory)
+    team_a = CombinedSearch(*[s[0], s[1]])
+    team_b = CombinedSearch(*[s[2], s[3]])
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2)
+
+    assert game.quality == 0.0
+
+
+def test_game_quality_for_4v4_example(player_factory):
+    s = make_searches([100, 100, 4000, 4000, 4000, 4000, 100, 100], player_factory)
+    team_a = CombinedSearch(*[s[0], s[1], s[2], s[3]])
+    team_b = CombinedSearch(*[s[4], s[5], s[6], s[7]])
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 4)
+
+    assert game.quality == 0.0
