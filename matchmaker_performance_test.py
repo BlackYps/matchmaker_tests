@@ -9,6 +9,7 @@ from matplotlib.ticker import MultipleLocator
 from sortedcontainers import SortedList
 
 from server import config
+from server.matchmaker.algorithm.bucket_teams import BucketTeamMatchmaker
 from server.matchmaker.algorithm.team_matchmaker import TeamMatchMaker
 from server.matchmaker.search import Match, Search
 from tests.conftest import make_player
@@ -85,11 +86,12 @@ def test_matchmaker(caplog, player_factory):
     newbie_wait_time = []
     queue = []
     iteration = []
+    team_size = 4
     for i in range(2000):
-        queue.extend(get_random_searches_list(player_factory, 0, 4, 4))
+        queue.extend(get_random_searches_list(player_factory, 0, 4, team_size))
         queue_len_before_pop.append(sum(len(search.players) for search in queue))
 
-        matches, unmatched = matchmaker.find(queue, 4)
+        matches, unmatched = matchmaker.find(queue, team_size)
 
         created_games.append(len(matches))
         queue_len_after_pop.append(sum(len(search.players) for search in unmatched))
@@ -105,7 +107,7 @@ def test_matchmaker(caplog, player_factory):
             min_rating = ratings[0]
             max_rating = ratings.pop()
             skill_differences.append(max_rating - min_rating)
-            if i % 10 == 0:
+            if i % 100 == 0:
                 print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
                       f"Quality: {quality_without_bonuses}")
