@@ -77,6 +77,7 @@ def test_matchmaker(caplog, player_factory):
     qualities = []
     rating_disparities = []
     deviations = []
+    skill_differences = []
     queue_len_before_pop = []
     created_games = []
     queue_len_after_pop = []
@@ -99,6 +100,11 @@ def test_matchmaker(caplog, player_factory):
             qualities.append(quality_without_bonuses)
             rating_disparities.append(rating_disparity)
             deviations.append(deviation)
+            ratings = [search.average_rating for team in match for search in team.get_original_searches()]
+            ratings.sort()
+            min_rating = ratings[0]
+            max_rating = ratings.pop()
+            skill_differences.append(max_rating - min_rating)
             if i % 10 == 0:
                 print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
@@ -135,6 +141,10 @@ def test_matchmaker(caplog, player_factory):
     max_deviations = max(deviations)
     avg_deviations = statistics.mean(deviations)
     med_deviations = statistics.median(deviations)
+    skill_difference_90_percentile = numpy.percentile(skill_differences, 90)
+    max_skill_difference = max(skill_differences)
+    avg_skill_difference = statistics.mean(skill_differences)
+    med_skill_difference = statistics.median(skill_differences)
 
     print()
     print(f"quality was between {worst_quality:.3f} and {best_quality:.3f} "
@@ -143,6 +153,8 @@ def test_matchmaker(caplog, player_factory):
           f"90th percentile {rating_disparity_90_percentile:.2f} and max {max_rating_disparity}")
     print(f"rating deviation was on average {avg_deviations:.2f}, median {med_deviations:.2f}, "
           f"90th percentile {deviations_90_percentile:.2f} and max {max_deviations:.2f}")
+    print(f"skill difference was on average {avg_skill_difference:.2f}, median {med_skill_difference:.2f}, "
+          f"90th percentile {skill_difference_90_percentile:.2f} and max {max_skill_difference:.2f}")
     print(f"number of unmatched players was between {min_length} and {max_length} "
           f"with average {avg_length:.2f} and median {med_length}")
     print(f"matched {len(wait_time)} searches total")
