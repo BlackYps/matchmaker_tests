@@ -88,6 +88,7 @@ def get_random_searches_list(player_factory, min_size=0, max_size=10, max_player
 def test_matchmaker(caplog, player_factory):
     # Disable debug logging for performance
     caplog.set_level(logging.INFO)
+    print()
 
     matchmaker = TeamMatchMaker()
     qualities = []
@@ -100,6 +101,8 @@ def test_matchmaker(caplog, player_factory):
     wait_time = []
     newbie_wait_time = []
     queue = []
+    search_ratings = []
+    search_newbie_ratings = []
     team_size = 4
     for i in range(2000):
         queue.extend(get_random_searches_list(player_factory, 0, 4, team_size))
@@ -121,18 +124,23 @@ def test_matchmaker(caplog, player_factory):
             min_rating = ratings[0]
             max_rating = ratings.pop()
             skill_differences.append(max_rating - min_rating)
-            if i % 100 == 0:
-                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
+            if any(team.failed_matching_attempts > 40 for team in match):
+                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs \n"
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
                       f"Quality: {quality_without_bonuses}")
             wait_time.extend(search.failed_matching_attempts
-                             for team in match for search in team.get_original_searches())
+                                  for team in match for search in team.get_original_searches())
             newbie_wait_time.extend(search.failed_matching_attempts
-                                    for team in match for search in team.get_original_searches() if search.has_newbie())
+                                  for team in match for search in team.get_original_searches() if search.has_newbie())
+            search_ratings.extend(search.average_rating
+                                  for team in match for search in team.get_original_searches())
+            search_newbie_ratings.extend(search.average_rating
+                                  for team in match for search in team.get_original_searches() if search.has_newbie())
+
         queue = unmatched
 
     wait_time_90_percentile = numpy.percentile(wait_time, 90)
-    max_wait_time = wait_time.pop()
+    max_wait_time = max(wait_time)
     avg_wait_time = statistics.mean(wait_time)
     med_wait_time = statistics.median(wait_time)
     newbie_wait_time_90_percentile = numpy.percentile(newbie_wait_time, 90)
@@ -186,19 +194,29 @@ def test_matchmaker(caplog, player_factory):
     print(f" ,{max_wait_time:.2f},{avg_wait_time:.2f},{med_wait_time:.2f},{wait_time_90_percentile:.2f}")
     print(f" ,{newbie_max_wait_time:.2f},{newbie_avg_wait_time:.2f},{newbie_med_wait_time:.2f},{newbie_wait_time_90_percentile:.2f}")
 
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(2, 2, figsize=(12, 9))
+    axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker="x")
+    axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker="x")
     rating_disparities.sort()
     deviations.sort()
     skill_differences.sort()
     wait_time.sort()
     newbie_wait_time.sort()
-    ax.plot(rating_disparities, label='rating disparity')
-    ax.plot(deviations, label='rating deviation')
-    ax.plot(skill_differences, label='skill differences')
-    ax.plot(wait_time, label='wait time')
-    ax.plot(newbie_wait_time, label='newbie wait time')
-    ax.grid()
-    ax.legend()
+    axs[0, 0].plot(rating_disparities, label='rating disparity')
+    axs[0, 0].plot(deviations, label='rating deviation')
+    axs[0, 0].plot(skill_differences, label='skill differences')
+    axs[1, 0].plot(wait_time, label='wait time')
+    axs[1, 0].plot(newbie_wait_time, label='newbie wait time')
+    bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300,
+            1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
+    axs[1, 1].hist(search_ratings, bins, density=False, label="average search rating")
+    axs[1, 1].hist(search_newbie_ratings, bins, density=False, label="average search rating with newbies")
+
+    for ax in axs.flat:
+        ax.grid()
+        ax.legend()
+
+    plt.savefig("diagrams.png")
     plt.show()
 
 
@@ -211,7 +229,7 @@ def test_player_generation(player_factory):
     x = [search.average_rating for search in searches]
     bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
     fig, ax = plt.subplots()
-    ax.hist(x, bins, density=True)
+    ax.hist(x, bins, density=False)
     ax.grid(axis='x')
     plt.show()
 
