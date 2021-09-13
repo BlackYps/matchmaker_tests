@@ -46,11 +46,11 @@ def calculate_game_quality(match: Match):
             ratings.append(search.average_rating)
 
     rating_disparity = abs(match[0].cumulative_rating - match[1].cumulative_rating)
-    fairness = 1 - (rating_disparity / config.MAXIMUM_RATING_IMBALANCE)
+    fairness = 1 - (rating_disparity / config.MAXIMUM_RATING_IMBALANCE) ** 2
     deviation = statistics.pstdev(ratings)
-    uniformity = 1 - (deviation / config.MAXIMUM_RATING_DEVIATION)
+    uniformity = 1 - (deviation / config.MAXIMUM_RATING_DEVIATION) ** 2
 
-    quality = fairness * uniformity
+    quality = (fairness + uniformity) / 2
     return quality, rating_disparity, deviation
 
 
