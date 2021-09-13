@@ -74,14 +74,23 @@ def get_random_searches_list(player_factory, min_size=0, max_size=10, max_player
     for _ in range(random.randint(min_size, max_size)):
         # With this distribution the number of players is 1.4 * len(list)
         num_players = min(int(random.paretovariate(2.0)), max_players)
-        players = [player_factory(
-            mean=int(random.triangular(-200, 2200, 900)),
-            deviation=int(random.triangular(10, 200, 80)),
-            ladder_games=random.randint(0, 200),
-            name=f"p{i}"
-        ) for i in range(num_players)]
-        searches.append(Search(players))
 
+        players = []
+        for i in range(num_players):
+            if random.random() < 0.05:
+                mean = random.triangular(-500, 1300, 0)
+                ladder_games = random.randint(0, config.NEWBIE_MIN_GAMES)
+            else:
+                mean = min(max(random.gauss(1000, 400), 0), 2300)
+                ladder_games = random.randint(config.NEWBIE_MIN_GAMES + 1, 200)
+            player = player_factory(
+                mean=int(mean),
+                deviation=33,
+                ladder_games=ladder_games,
+                name=f"p{i}",
+            )
+            players.append(player)
+        searches.append(Search(players))
     return searches
 
 
@@ -227,9 +236,11 @@ def test_player_generation(player_factory):
         print(f"{len(searches_by_size[i])} searches with {i} players")
 
     x = [search.average_rating for search in searches]
+    n = [search.average_rating for search in searches if search.has_newbie()]
     bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
     fig, ax = plt.subplots()
     ax.hist(x, bins, density=False)
+    ax.hist(n, bins, density=False)
     ax.grid(axis='x')
     plt.show()
 
