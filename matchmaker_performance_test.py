@@ -112,9 +112,11 @@ def test_matchmaker(caplog, player_factory):
     queue = []
     search_ratings = []
     search_newbie_ratings = []
-    team_size = 4
-    for i in range(2000):
-        queue.extend(get_random_searches_list(player_factory, 0, 4, team_size))
+    team_size = 2
+    influx = 2
+    iterations = int(20000 / influx)
+    for i in range(iterations):
+        queue.extend(get_random_searches_list(player_factory, 0, influx, team_size))
         queue_len_before_pop.append(sum(len(search.players) for search in queue))
 
         matches, unmatched = matchmaker.find(queue, team_size)
@@ -133,8 +135,8 @@ def test_matchmaker(caplog, player_factory):
             min_rating = ratings[0]
             max_rating = ratings.pop()
             skill_differences.append(max_rating - min_rating)
-            if any(team.failed_matching_attempts > 40 for team in match):
-                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs \n"
+            if rating_disparity > 1200 or any(search.has_newbie() and search.failed_matching_attempts > 15 for team in match for search in team.get_original_searches()):
+                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
                       f"Quality: {quality_without_bonuses}")
             wait_time.extend(search.failed_matching_attempts
@@ -148,47 +150,51 @@ def test_matchmaker(caplog, player_factory):
 
         queue = unmatched
 
-    wait_time_90_percentile = numpy.percentile(wait_time, 90)
-    max_wait_time = max(wait_time)
     avg_wait_time = statistics.mean(wait_time)
     med_wait_time = statistics.median(wait_time)
-    newbie_wait_time_90_percentile = numpy.percentile(newbie_wait_time, 90)
-    newbie_max_wait_time = max(newbie_wait_time)
+    wait_time_percentile = numpy.percentile(wait_time, 75)
+    wait_time_90_percentile = numpy.percentile(wait_time, 90)
+    max_wait_time = max(wait_time)
     newbie_avg_wait_time = statistics.mean(newbie_wait_time)
     newbie_med_wait_time = statistics.median(newbie_wait_time)
-    min_length = min(queue_len_after_pop)
-    max_length = max(queue_len_after_pop)
+    newbie_wait_time_percentile = numpy.percentile(newbie_wait_time, 75)
+    newbie_wait_time_90_percentile = numpy.percentile(newbie_wait_time, 90)
+    newbie_max_wait_time = max(newbie_wait_time)
     avg_length = statistics.mean(queue_len_after_pop)
     med_length = statistics.median(queue_len_after_pop)
-    best_quality = max(qualities)
-    worst_quality = min(qualities)
+    length_percentile = numpy.percentile(queue_len_after_pop, 75)
+    length_90_percentile = numpy.percentile(queue_len_after_pop, 90)
+    max_length = max(queue_len_after_pop)
     avg_quality = statistics.mean(qualities)
     med_quality = statistics.median(qualities)
     quality_percentile = numpy.percentile(qualities, 75)
-    rating_disparity_90_percentile = numpy.percentile(rating_disparities, 90)
-    max_rating_disparity = max(rating_disparities)
+    quality_90_percentile = numpy.percentile(qualities, 90)
+    best_quality = max(qualities)
     avg_rating_disparity = statistics.mean(rating_disparities)
     med_rating_disparity = statistics.median(rating_disparities)
-    deviations_90_percentile = numpy.percentile(deviations, 90)
-    max_deviations = max(deviations)
+    rating_disparity_percentile = numpy.percentile(rating_disparities, 75)
+    rating_disparity_90_percentile = numpy.percentile(rating_disparities, 90)
+    max_rating_disparity = max(rating_disparities)
     avg_deviations = statistics.mean(deviations)
     med_deviations = statistics.median(deviations)
-    skill_difference_90_percentile = numpy.percentile(skill_differences, 90)
-    max_skill_difference = max(skill_differences)
+    deviations_percentile = numpy.percentile(deviations, 75)
+    deviations_90_percentile = numpy.percentile(deviations, 90)
+    max_deviations = max(deviations)
     avg_skill_difference = statistics.mean(skill_differences)
     med_skill_difference = statistics.median(skill_differences)
+    skill_difference_percentile = numpy.percentile(skill_differences, 75)
+    skill_difference_90_percentile = numpy.percentile(skill_differences, 90)
+    max_skill_difference = max(skill_differences)
 
     print()
-    print(f"quality was between {worst_quality:.3f} and {best_quality:.3f} "
-          f"with average {avg_quality:.2f} and 75th percentile {quality_percentile:.2f}")
+    print(f"quality was on average {avg_quality:.2f} with 90th percentile {quality_90_percentile:.2f}")
     print(f"rating disparity was on average {avg_rating_disparity:.2f}, median {med_rating_disparity:.2f}, "
           f"90th percentile {rating_disparity_90_percentile:.2f} and max {max_rating_disparity}")
     print(f"rating deviation was on average {avg_deviations:.2f}, median {med_deviations:.2f}, "
           f"90th percentile {deviations_90_percentile:.2f} and max {max_deviations:.2f}")
     print(f"skill difference was on average {avg_skill_difference:.2f}, median {med_skill_difference:.2f}, "
           f"90th percentile {skill_difference_90_percentile:.2f} and max {max_skill_difference:.2f}")
-    print(f"number of unmatched players was between {min_length} and {max_length} "
-          f"with average {avg_length:.2f} and median {med_length}")
+    print(f"number of unmatched players was on average {avg_length:.2f}, median {med_length} and max {max_length} ")
     print(f"matched {len(wait_time)} searches total")
     print(f"wait time was on average {avg_wait_time:.2f}, median {med_wait_time}, "
           f"90th percentile {wait_time_90_percentile} and max {max_wait_time} cycles")
@@ -196,16 +202,23 @@ def test_matchmaker(caplog, player_factory):
     print(f"newbie wait time was on average {newbie_avg_wait_time:.2f}, median {newbie_med_wait_time}, "
           f"90th percentile {newbie_wait_time_90_percentile} and max {newbie_max_wait_time} cycles")
     print()
-    print(f"{worst_quality:.2f},{best_quality:.2f},{avg_quality:.2f},{med_quality:.2f},{quality_percentile:.2f}")
-    print(f" ,{max_rating_disparity:.2f},{avg_rating_disparity:.2f},{med_rating_disparity:.2f},{rating_disparity_90_percentile:.2f}")
-    print(f" ,{max_deviations:.2f},{avg_deviations:.2f},{med_deviations:.2f},{deviations_90_percentile:.2f}")
-    print(f"{min_length:.2f},{max_length:.2f},{avg_length:.2f},{med_length:.2f},")
-    print(f" ,{max_wait_time:.2f},{avg_wait_time:.2f},{med_wait_time:.2f},{wait_time_90_percentile:.2f}")
-    print(f" ,{newbie_max_wait_time:.2f},{newbie_avg_wait_time:.2f},{newbie_med_wait_time:.2f},{newbie_wait_time_90_percentile:.2f}")
+    print(f"{avg_quality:.2f},{med_quality:.2f},{quality_percentile:.2f},{quality_90_percentile:.2f},{best_quality:.2f}")
+    print(f"{avg_rating_disparity:.2f},{med_rating_disparity:.2f},{rating_disparity_percentile:.2f},{rating_disparity_90_percentile:.2f},{max_rating_disparity:.2f}")
+    print(f"{avg_deviations:.2f},{med_deviations:.2f},{deviations_percentile:.2f},{deviations_90_percentile:.2f},{max_deviations:.2f}")
+    print(f"{avg_skill_difference:.2f},{med_skill_difference:.2f},{skill_difference_percentile:.2f},{skill_difference_90_percentile:.2f},{max_skill_difference:.2f}")
+    print(f"{avg_length:.2f},{med_length:.2f},{length_percentile:.2f},{length_90_percentile:.2f},{max_length:.2f}")
+    print(f"{avg_wait_time:.1f},{med_wait_time:.1f},{wait_time_percentile:.1f},{wait_time_90_percentile:.1f},{max_wait_time:.1f}")
+    print(f"{newbie_avg_wait_time:.1f},{newbie_med_wait_time:.1f},{newbie_wait_time_percentile:.1f},{newbie_wait_time_90_percentile:.1f},{newbie_max_wait_time:.1f}")
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 9))
+    fig.suptitle(f"{team_size}v{team_size} influx: 0-{influx} iterations: {iterations}\n "
+                 f"time bonus: {config.TIME_BONUS} max: {config.MAXIMUM_TIME_BONUS} "
+                 f"newbie bonus: {config.NEWBIE_TIME_BONUS} max: {config.MAXIMUM_NEWBIE_TIME_BONUS}\n"
+                 f"min quality: {config.MINIMUM_GAME_QUALITY}, max imbalance: {config.MAXIMUM_RATING_IMBALANCE}, max deviation: {config.MAXIMUM_RATING_DEVIATION}")
     axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker="x")
     axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker="x")
+    axs[0, 1].set_ylim((0, 100))
+    axs[0, 1].set(xlabel="rating")
     rating_disparities.sort()
     deviations.sort()
     skill_differences.sort()
@@ -214,18 +227,25 @@ def test_matchmaker(caplog, player_factory):
     axs[0, 0].plot(rating_disparities, label='rating disparity')
     axs[0, 0].plot(deviations, label='rating deviation')
     axs[0, 0].plot(skill_differences, label='skill differences')
+    axs[0, 0].set_ylim((0, 2000))
+    axs[0, 0].set(xlabel="game number")
     axs[1, 0].plot(wait_time, label='wait time')
     axs[1, 0].plot(newbie_wait_time, label='newbie wait time')
+    axs[1, 0].text(0.9, 0.78, f"average: {avg_wait_time:.1f}\nmedian: {med_wait_time}\nnewbie average: {newbie_avg_wait_time:.1f}\nnewbie median: {newbie_med_wait_time}",
+                   horizontalalignment='right', transform=axs[1, 0].transAxes)
+    axs[1, 0].set_ylim((0, 200))
+    axs[1, 0].set(xlabel="search number")
     bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300,
             1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
-    axs[1, 1].hist(search_ratings, bins, density=False, label="average search rating")
-    axs[1, 1].hist(search_newbie_ratings, bins, density=False, label="average search rating with newbies")
+    axs[1, 1].hist(search_ratings, bins, density=False, label="search average rating")
+    axs[1, 1].hist(search_newbie_ratings, bins, density=False, label="search with newbies average rating")
+    axs[1, 1].set(xlabel="rating")
 
     for ax in axs.flat:
         ax.grid()
-        ax.legend()
+        ax.legend(loc="upper left")
 
-    plt.savefig("diagrams.png")
+    plt.savefig(f"test {team_size}v{team_size} 0-{influx}.png")
     plt.show()
 
 
