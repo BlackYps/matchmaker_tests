@@ -100,7 +100,6 @@ def test_matchmaker(caplog, player_factory):
     print()
 
     matchmaker = TeamMatchMaker()
-    qualities = []
     rating_disparities = []
     deviations = []
     skill_differences = []
@@ -127,7 +126,6 @@ def test_matchmaker(caplog, player_factory):
             search.register_failed_matching_attempt()
         for match in matches:
             quality_without_bonuses, rating_disparity, deviation = calculate_game_quality(match)
-            qualities.append(quality_without_bonuses)
             rating_disparities.append(rating_disparity)
             deviations.append(deviation)
             ratings = [search.average_rating for team in match for search in team.get_original_searches()]
@@ -165,11 +163,6 @@ def test_matchmaker(caplog, player_factory):
     length_percentile = numpy.percentile(queue_len_after_pop, 75)
     length_90_percentile = numpy.percentile(queue_len_after_pop, 90)
     max_length = max(queue_len_after_pop)
-    avg_quality = statistics.mean(qualities)
-    med_quality = statistics.median(qualities)
-    quality_percentile = numpy.percentile(qualities, 75)
-    quality_90_percentile = numpy.percentile(qualities, 90)
-    best_quality = max(qualities)
     avg_rating_disparity = statistics.mean(rating_disparities)
     med_rating_disparity = statistics.median(rating_disparities)
     rating_disparity_percentile = numpy.percentile(rating_disparities, 75)
@@ -187,7 +180,6 @@ def test_matchmaker(caplog, player_factory):
     max_skill_difference = max(skill_differences)
 
     print()
-    print(f"quality was on average {avg_quality:.2f} with 90th percentile {quality_90_percentile:.2f}")
     print(f"rating disparity was on average {avg_rating_disparity:.2f}, median {med_rating_disparity:.2f}, "
           f"90th percentile {rating_disparity_90_percentile:.2f} and max {max_rating_disparity}")
     print(f"rating deviation was on average {avg_deviations:.2f}, median {med_deviations:.2f}, "
@@ -202,7 +194,6 @@ def test_matchmaker(caplog, player_factory):
     print(f"newbie wait time was on average {newbie_avg_wait_time:.2f}, median {newbie_med_wait_time}, "
           f"90th percentile {newbie_wait_time_90_percentile} and max {newbie_max_wait_time} cycles")
     print()
-    print(f"{avg_quality:.2f},{med_quality:.2f},{quality_percentile:.2f},{quality_90_percentile:.2f},{best_quality:.2f}")
     print(f"{avg_rating_disparity:.2f},{med_rating_disparity:.2f},{rating_disparity_percentile:.2f},{rating_disparity_90_percentile:.2f},{max_rating_disparity:.2f}")
     print(f"{avg_deviations:.2f},{med_deviations:.2f},{deviations_percentile:.2f},{deviations_90_percentile:.2f},{max_deviations:.2f}")
     print(f"{avg_skill_difference:.2f},{med_skill_difference:.2f},{skill_difference_percentile:.2f},{skill_difference_90_percentile:.2f},{max_skill_difference:.2f}")
