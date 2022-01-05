@@ -1,6 +1,8 @@
 import logging
 import random
 import statistics
+from math import sqrt
+
 import numpy
 import matplotlib.pyplot as plt
 import pytest
@@ -40,21 +42,27 @@ def player_factory():
 
 
 def calculate_game_quality(match: Match):
+    # This should be the same as assign_game_quality() in team_matchmaker.py
+    # just without the time bonuses, because for the analysis we don't want
+    # them to skew the matrics.
+    # There is probably a better way to do this to ensure this is stays in sync
+    # with the original function
     ratings = []
     for team in match:
         for search in team.get_original_searches():
             ratings.append(search.average_rating)
 
     rating_disparity = abs(match[0].cumulative_rating - match[1].cumulative_rating)
-    fairness = 1 - (rating_disparity / config.MAXIMUM_RATING_IMBALANCE) ** 2
+    unfairness = rating_disparity / config.MAXIMUM_RATING_IMBALANCE
     deviation = statistics.pstdev(ratings)
-    uniformity = 1 - (deviation / config.MAXIMUM_RATING_DEVIATION) ** 2
+    rating_variety = deviation / config.MAXIMUM_RATING_DEVIATION
 
-    quality = (fairness + uniformity) / 2
+    quality = 1 - sqrt(unfairness ** 2 + rating_variety ** 2)
     return quality, rating_disparity, deviation
 
 
 def calculate_capped_game_quality(match: Match):
+    # legacy version of computing game quality
     ratings = []
     for team in match:
         for search in team.get_original_searches():
@@ -73,6 +81,7 @@ def get_random_searches_list(player_factory, min_size=0, max_size=10, max_player
     searches = []
     for _ in range(random.randint(min_size, max_size)):
         # With this distribution the number of players is 1.4 * len(list)
+        # TODO: Gather some data if this distribution is realistic at all
         num_players = min(int(random.paretovariate(2.0)), max_players)
 
         players = []
@@ -94,12 +103,12 @@ def get_random_searches_list(player_factory, min_size=0, max_size=10, max_player
     return searches
 
 
-def test_matchmaker(caplog, player_factory):
+def test_matchmaker_performance(caplog, player_factory):
+
     # Disable debug logging for performance
     caplog.set_level(logging.INFO)
     print()
 
-    matchmaker = TeamMatchMaker()
     rating_disparities = []
     deviations = []
     skill_differences = []
@@ -111,11 +120,17 @@ def test_matchmaker(caplog, player_factory):
     queue = []
     search_ratings = []
     search_newbie_ratings = []
-    team_size = 2
-    influx = 2
-    iterations = int(20000 / influx)
+
+    # Set options for this run here
+    matchmaker = TeamMatchMaker()
+    # matchmaker = BucketTeamMatchmaker()
+    team_size = 4
+    min_influx = 0  # Min number of searches joining the queue per matching round
+    max_influx = 2
+    iterations = int(20000 / (max_influx + min_influx))
+
     for i in range(iterations):
-        queue.extend(get_random_searches_list(player_factory, 0, influx, team_size))
+        queue.extend(get_random_searches_list(player_factory, min_influx, max_influx, team_size))
         queue_len_before_pop.append(sum(len(search.players) for search in queue))
 
         matches, unmatched = matchmaker.find(queue, team_size)
@@ -133,10 +148,6 @@ def test_matchmaker(caplog, player_factory):
             min_rating = ratings[0]
             max_rating = ratings.pop()
             skill_differences.append(max_rating - min_rating)
-            if rating_disparity > 1200 or any(search.has_newbie() and search.failed_matching_attempts > 15 for team in match for search in team.get_original_searches()):
-                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
-                      f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
-                      f"Quality: {quality_without_bonuses}")
             wait_time.extend(search.failed_matching_attempts
                                   for team in match for search in team.get_original_searches())
             newbie_wait_time.extend(search.failed_matching_attempts
@@ -145,6 +156,13 @@ def test_matchmaker(caplog, player_factory):
                                   for team in match for search in team.get_original_searches())
             search_newbie_ratings.extend(search.average_rating
                                   for team in match for search in team.get_original_searches() if search.has_newbie())
+            # I use this to give me some info on particular edge cases. Set this to whatever interests you,
+            # but be careful, you can get a lot of log output.
+            if rating_disparity > 1200 or any(search.has_newbie() and search.failed_matching_attempts > 15
+                                              for team in match for search in team.get_original_searches()):
+                print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
+                      f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
+                      f"Quality: {quality_without_bonuses}")
 
         queue = unmatched
 
@@ -194,6 +212,7 @@ def test_matchmaker(caplog, player_factory):
     print(f"newbie wait time was on average {newbie_avg_wait_time:.2f}, median {newbie_med_wait_time}, "
           f"90th percentile {newbie_wait_time_90_percentile} and max {newbie_max_wait_time} cycles")
     print()
+    # This is here, so I can copy the values in my spreadsheet easily.
     print(f"{avg_rating_disparity:.2f},{med_rating_disparity:.2f},{rating_disparity_percentile:.2f},{rating_disparity_90_percentile:.2f},{max_rating_disparity:.2f}")
     print(f"{avg_deviations:.2f},{med_deviations:.2f},{deviations_percentile:.2f},{deviations_90_percentile:.2f},{max_deviations:.2f}")
     print(f"{avg_skill_difference:.2f},{med_skill_difference:.2f},{skill_difference_percentile:.2f},{skill_difference_90_percentile:.2f},{max_skill_difference:.2f}")
@@ -202,7 +221,7 @@ def test_matchmaker(caplog, player_factory):
     print(f"{newbie_avg_wait_time:.1f},{newbie_med_wait_time:.1f},{newbie_wait_time_percentile:.1f},{newbie_wait_time_90_percentile:.1f},{newbie_max_wait_time:.1f}")
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 9))
-    fig.suptitle(f"{team_size}v{team_size} influx: 0-{influx} iterations: {iterations}\n "
+    fig.suptitle(f"{team_size}v{team_size} influx: {min_influx}-{max_influx} iterations: {iterations}\n "
                  f"time bonus: {config.TIME_BONUS} max: {config.MAXIMUM_TIME_BONUS} "
                  f"newbie bonus: {config.NEWBIE_TIME_BONUS} max: {config.MAXIMUM_NEWBIE_TIME_BONUS}\n"
                  f"min quality: {config.MINIMUM_GAME_QUALITY}, max imbalance: {config.MAXIMUM_RATING_IMBALANCE}, max deviation: {config.MAXIMUM_RATING_DEVIATION}")
@@ -236,7 +255,7 @@ def test_matchmaker(caplog, player_factory):
         ax.grid()
         ax.legend(loc="upper left")
 
-    plt.savefig(f"test {team_size}v{team_size} 0-{influx}.png")
+    plt.savefig(f"test {team_size}v{team_size} {min_influx}-{max_influx}.png")
     plt.show()
 
 
@@ -248,7 +267,8 @@ def test_player_generation(player_factory):
 
     x = [search.average_rating for search in searches]
     n = [search.average_rating for search in searches if search.has_newbie()]
-    bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
+    bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900,
+            1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
     fig, ax = plt.subplots()
     ax.hist(x, bins, density=False)
     ax.hist(n, bins, density=False)
@@ -261,8 +281,10 @@ def test_game_quality_for_2v2_example(player_factory):
     team_a = CombinedSearch(*[s[0], s[1]])
     team_b = CombinedSearch(*[s[2], s[3]])
     game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2)
+    capped_quality, _, _ = calculate_capped_game_quality((team_a, team_b))
 
-    assert game.quality == calculate_capped_game_quality((team_a, team_b))
+    assert game.quality == capped_quality
+    # This is just my lazy way of getting the game quality displayed in the output log
     assert game.quality == 0.0
 
 
