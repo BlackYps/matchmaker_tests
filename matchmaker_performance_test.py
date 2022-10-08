@@ -44,7 +44,7 @@ def player_factory():
 def calculate_game_quality(match: Match):
     # This should be the same as assign_game_quality() in team_matchmaker.py
     # just without the time bonuses, because for the analysis we don't want
-    # them to skew the matrics.
+    # them to skew the metrics.
     # There is probably a better way to do this to ensure this is stays in sync
     # with the original function
     ratings = []
@@ -110,8 +110,12 @@ def test_matchmaker_performance(caplog, player_factory):
     print()
 
     rating_disparities = []
+    newbie_rating_disparities = []
     deviations = []
+    avg_ratings = []
+    newbie_avg_ratings = []
     skill_differences = []
+    newbie_skill_differences = []
     queue_len_before_pop = []
     created_games = []
     queue_len_after_pop = []
@@ -141,13 +145,20 @@ def test_matchmaker_performance(caplog, player_factory):
             search.register_failed_matching_attempt()
         for match in matches:
             quality_without_bonuses, rating_disparity, deviation = calculate_game_quality(match)
-            rating_disparities.append(rating_disparity)
             deviations.append(deviation)
             ratings = [search.average_rating for team in match for search in team.get_original_searches()]
             ratings.sort()
             min_rating = ratings[0]
             max_rating = ratings.pop()
-            skill_differences.append(max_rating - min_rating)
+            avg_rating = statistics.mean(ratings)  # this only breaks down to searches but shouldn't matter
+            if match[0].has_newbie() or match[1].has_newbie():
+                newbie_avg_ratings.append(avg_rating)
+                newbie_skill_differences.append(max_rating - min_rating)
+                newbie_rating_disparities.append(rating_disparity)
+            else:
+                avg_ratings.append(avg_rating)
+                skill_differences.append(max_rating - min_rating)
+                rating_disparities.append(rating_disparity)
             wait_time.extend(search.failed_matching_attempts
                                   for team in match for search in team.get_original_searches())
             newbie_wait_time.extend(search.failed_matching_attempts
@@ -220,17 +231,30 @@ def test_matchmaker_performance(caplog, player_factory):
     print(f"{avg_wait_time:.1f},{med_wait_time:.1f},{wait_time_percentile:.1f},{wait_time_90_percentile:.1f},{max_wait_time:.1f}")
     print(f"{newbie_avg_wait_time:.1f},{newbie_med_wait_time:.1f},{newbie_wait_time_percentile:.1f},{newbie_wait_time_90_percentile:.1f},{newbie_max_wait_time:.1f}")
 
-    fig, axs = plt.subplots(2, 2, figsize=(12, 9))
+    fig, axs = plt.subplots(2, 3, figsize=(12, 9))
     fig.suptitle(f"{team_size}v{team_size} influx: {min_influx}-{max_influx} iterations: {iterations}\n "
                  f"time bonus: {config.TIME_BONUS} max: {config.MAXIMUM_TIME_BONUS} "
                  f"newbie bonus: {config.NEWBIE_TIME_BONUS} max: {config.MAXIMUM_NEWBIE_TIME_BONUS}\n"
                  f"min quality: {config.MINIMUM_GAME_QUALITY}, max imbalance: {config.MAXIMUM_RATING_IMBALANCE}, max deviation: {config.MAXIMUM_RATING_DEVIATION}")
-    axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker="x")
-    axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker="x")
+    axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker=".")
+    axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker=".")
     axs[0, 1].set_ylim((0, 100))
     axs[0, 1].set(xlabel="rating")
+
+    axs[0, 2].scatter(avg_ratings, rating_disparities, label="rating disparity between teams", marker=".")
+    axs[0, 2].scatter(newbie_avg_ratings, newbie_rating_disparities, label="games with newbies", marker="1")
+    axs[0, 2].set(xlabel="game rating")
+    axs[0, 2].set_ylim(bottom=0)
+
+    axs[1, 2].scatter(avg_ratings, skill_differences, label="skill differences between players", marker=".")
+    axs[1, 2].scatter(newbie_avg_ratings, newbie_skill_differences, label="games with newbies", marker="1")
+    axs[1, 2].set(xlabel="game rating")
+    axs[1, 2].set_ylim(bottom=0)
+
+    rating_disparities.extend(newbie_rating_disparities)
     rating_disparities.sort()
     deviations.sort()
+    skill_differences.extend(newbie_skill_differences)
     skill_differences.sort()
     wait_time.sort()
     newbie_wait_time.sort()
