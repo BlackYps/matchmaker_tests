@@ -239,18 +239,18 @@ def test_matchmaker_performance(caplog, player_factory):
                  f"max deviation: {config.MAXIMUM_RATING_DEVIATION}")
     axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker=".")
     axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker=".")
-    axs[0, 1].set_ylim((0, 100))
+    axs[0, 1].set_ylim((0, 80))
     axs[0, 1].set(xlabel="rating")
 
     axs[0, 2].scatter(avg_ratings, rating_disparities, label="rating disparity between teams", marker=".")
     axs[0, 2].scatter(newbie_avg_ratings, newbie_rating_disparities, label="games with newbies", marker="1")
     axs[0, 2].set(xlabel="game rating")
-    axs[0, 2].set_ylim(bottom=0)
+    axs[0, 2].set_ylim(bottom=0, top=440)
 
     axs[1, 2].scatter(avg_ratings, skill_differences, label="skill differences between players", marker=".")
     axs[1, 2].scatter(newbie_avg_ratings, newbie_skill_differences, label="games with newbies", marker="1")
     axs[1, 2].set(xlabel="game rating")
-    axs[1, 2].set_ylim(bottom=0)
+    axs[1, 2].set_ylim(bottom=0, top=1800)
 
     rating_disparities.extend(newbie_rating_disparities)
     rating_disparities.sort()
@@ -268,7 +268,7 @@ def test_matchmaker_performance(caplog, player_factory):
     axs[1, 0].plot(newbie_wait_time)
     axs[1, 0].text(0.9, 0.78, f"average: {avg_wait_time:.1f}\nmedian: {med_wait_time}\nnewbie average: {newbie_avg_wait_time:.1f}\nnewbie median: {newbie_med_wait_time}",
                    horizontalalignment='right', transform=axs[1, 0].transAxes)
-    axs[1, 0].set_ylim((0, 200))
+    axs[1, 0].set_ylim((0, 50))
     axs[1, 0].set(xlabel="search number")
     bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300,
             1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
