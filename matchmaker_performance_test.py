@@ -232,9 +232,11 @@ def test_matchmaker_performance(caplog, player_factory):
 
     fig, axs = plt.subplots(2, 3, figsize=(12, 9))
     fig.suptitle(f"{team_size}v{team_size} influx: {min_influx}-{max_influx} iterations: {iterations}\n "
-                 f"time bonus: {config.TIME_BONUS} max: {config.MAXIMUM_TIME_BONUS} "
-                 f"newbie bonus: {config.NEWBIE_TIME_BONUS} max: {config.MAXIMUM_NEWBIE_TIME_BONUS}\n"
-                 f"min quality: {config.MINIMUM_GAME_QUALITY}, max imbalance: {config.MAXIMUM_RATING_IMBALANCE}, max deviation: {config.MAXIMUM_RATING_DEVIATION}")
+                 f"time bonus: {config.TIME_BONUS}, max: {config.MAXIMUM_TIME_BONUS}, "
+                 f"newbie bonus: {config.NEWBIE_TIME_BONUS}, max: {config.MAXIMUM_NEWBIE_TIME_BONUS}, "
+                 f"minority bonus: {config.MINORITY_BONUS}\n"
+                 f"min quality: {config.MINIMUM_GAME_QUALITY}, max imbalance: {config.MAXIMUM_RATING_IMBALANCE}, "
+                 f"max deviation: {config.MAXIMUM_RATING_DEVIATION}")
     axs[0, 1].scatter(search_ratings, wait_time, label='wait time', marker=".")
     axs[0, 1].scatter(search_newbie_ratings, newbie_wait_time, label='newbie wait time', marker=".")
     axs[0, 1].set_ylim((0, 100))
@@ -263,7 +265,7 @@ def test_matchmaker_performance(caplog, player_factory):
     axs[0, 0].set_ylim((0, 2000))
     axs[0, 0].set(xlabel="game number")
     axs[1, 0].plot(wait_time, label='wait time')
-    axs[1, 0].plot(newbie_wait_time, label='newbie wait time')
+    axs[1, 0].plot(newbie_wait_time)
     axs[1, 0].text(0.9, 0.78, f"average: {avg_wait_time:.1f}\nmedian: {med_wait_time}\nnewbie average: {newbie_avg_wait_time:.1f}\nnewbie median: {newbie_med_wait_time}",
                    horizontalalignment='right', transform=axs[1, 0].transAxes)
     axs[1, 0].set_ylim((0, 200))
