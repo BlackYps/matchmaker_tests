@@ -80,9 +80,8 @@ def calculate_capped_game_quality(match: Match):
 def get_random_searches_list(player_factory, min_size=0, max_size=10, max_players=4):
     searches = []
     for _ in range(random.randint(min_size, max_size)):
-        # With this distribution the number of players is 1.4 * len(list)
-        # TODO: Gather some data if this distribution is realistic at all
-        num_players = min(int(random.paretovariate(2.0)), max_players)
+        # This is pretty close to the actual team sizes for 4v4
+        num_players = min(int(random.paretovariate(2.5)), max_players)
 
         players = []
         for i in range(num_players):
@@ -90,8 +89,8 @@ def get_random_searches_list(player_factory, min_size=0, max_size=10, max_player
                 mean = random.triangular(-500, 1300, 0)
                 ladder_games = random.randint(0, config.NEWBIE_MIN_GAMES)
             else:
-                mean = min(max(random.gauss(1000, 400), 0), 2300)
-                ladder_games = random.randint(config.NEWBIE_MIN_GAMES + 1, 200)
+                mean = min(max(random.gauss(1000, 400), -200), 2300)
+                ladder_games = random.randint(config.NEWBIE_MIN_GAMES + 2, 200)
             player = player_factory(
                 mean=int(mean),
                 deviation=33,
@@ -130,7 +129,7 @@ def test_matchmaker_performance(caplog, player_factory):
     # matchmaker = BucketTeamMatchmaker()
     team_size = 4
     min_influx = 0  # Min number of searches joining the queue per matching round
-    max_influx = 2
+    max_influx = 10
     iterations = int(20000 / (max_influx + min_influx))
 
     for i in range(iterations):
