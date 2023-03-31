@@ -1,21 +1,22 @@
 import requests
 import csv
 import matplotlib.pyplot as plt
+import statistics
 
-FILENAME = "active-players-rating.csv"
+FILENAME = "active-tmm-players-rating.csv"
 
 
 def get_game_infos(num_entries):
     response = requests.get(
-        "https://api.faforever.com/data/game?sort=-id&include=playerStats.player.globalRating"
-        "&filter=(featuredMod.id==0;validity==VALID)"
+        "https://api.faforever.com/data/leaderboardRatingJournal?sort=-id"
+        "&filter=leaderboard.id==4"
         f"&page%5Bnumber%5D=1&page%5Bsize%5D={num_entries}"
     )
     if response.status_code != 200:
         print("Something when wrong fetching ladder leaderboards.")
         return
 
-    return response.json()["included"]
+    return response.json()["data"]
 
 
 def save_samples(num_games):
@@ -25,22 +26,22 @@ def save_samples(num_games):
         writer = csv.writer(f)
         writer.writerow(
             [
-                "rating",
-                "games played",
+                "mean",
+                "deviation",
             ]
         )
         for data in dataset:
-            if data["type"] == "globalRating":
-                writer.writerow(
-                    [
-                        data["attributes"]["rating"],
-                        data["attributes"]["numberOfGames"],
-                    ]
-                )
+            writer.writerow(
+                [
+                    data["attributes"]["meanBefore"],
+                    data["attributes"]["deviationBefore"],
+                ]
+            )
 
 
 if __name__ == "__main__":
-    save_samples(200)
+    samples = 1000
+    save_samples(samples)
 
     ratings = []
     newbie_ratings = []
@@ -50,15 +51,13 @@ if __name__ == "__main__":
         reader = csv.reader(f)
         reader.__next__()
         for row in reader:
-            ratings.append(float(row[0]))
-            if int(row[1]) <= newbie_min_games:
-                newbie_ratings.append(float(row[0]))
+            ratings.append(float(row[0]) - 3 * float(row[1]))
+        avg = statistics.mean(ratings)
 
     bins = [-600, -500, -400, -300, -200, -100, 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100]
     fig, ax = plt.subplots()
-    ax.hist(ratings, bins, density=False, label=f"{len(ratings)} total players")
-    ax.hist(newbie_ratings, bins, density=False, label=f"{len(newbie_ratings)} newbie players")
+    ax.hist(ratings, bins, density=False, label=f"{len(ratings)} total players, avg {avg} rating")
     ax.grid(axis='x')
     ax.legend()
-    plt.savefig("active-players-ratings.png")
+    plt.savefig(f"active-tmm-players-ratings {samples} samples.png")
     plt.show()
