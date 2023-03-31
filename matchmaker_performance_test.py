@@ -130,13 +130,13 @@ def test_matchmaker_performance(caplog, player_factory):
     team_size = 4
     min_influx = 0  # Min number of searches joining the queue per matching round
     max_influx = 10
-    iterations = int(20000 / (max_influx + min_influx))
+    iterations = int(40000 / (max_influx + min_influx))
 
     for i in range(iterations):
         queue.extend(get_random_searches_list(player_factory, min_influx, max_influx, team_size))
         queue_len_before_pop.append(sum(len(search.players) for search in queue))
 
-        matches, unmatched = matchmaker.find(queue, team_size)
+        matches, unmatched = matchmaker.find(queue, team_size, 1000)
 
         created_games.append(len(matches))
         queue_len_after_pop.append(sum(len(search.players) for search in unmatched))
@@ -168,7 +168,7 @@ def test_matchmaker_performance(caplog, player_factory):
                                   for team in match for search in team.get_original_searches() if search.has_newbie())
             # I use this to give me some info on particular edge cases. Set this to whatever interests you,
             # but be careful, you can get a lot of log output.
-            if rating_disparity > 1200 or any(search.has_newbie() and search.failed_matching_attempts > 15
+            if quality_without_bonuses < -0.5 and any(search.has_newbie()
                                               for team in match for search in team.get_original_searches()):
                 print(f"{repr(match[0].get_original_searches())} tot. rating: {match[0].cumulative_rating} vs "
                       f"{repr(match[1].get_original_searches())} tot. rating: {match[1].cumulative_rating} "
@@ -305,7 +305,7 @@ def test_game_quality_for_2v2_example(player_factory):
     s = make_searches([2156, -32, 1084, 570], player_factory)
     team_a = CombinedSearch(*[s[0], s[1]])
     team_b = CombinedSearch(*[s[2], s[3]])
-    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2)
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2, 900)
     capped_quality, _, _ = calculate_capped_game_quality((team_a, team_b))
 
     assert game.quality == capped_quality
@@ -314,18 +314,46 @@ def test_game_quality_for_2v2_example(player_factory):
 
 
 def test_game_quality_for_2v2_example2(player_factory):
-    s = make_searches([900, 800, 2000, 1300], player_factory)
+    s = make_searches([1156, 1108, 810, 1456], player_factory)
     team_a = CombinedSearch(*[s[0], s[1]])
     team_b = CombinedSearch(*[s[2], s[3]])
-    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2)
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 2, 900)
 
     assert game.quality == 0.0
 
 
 def test_game_quality_for_4v4_example(player_factory):
-    s = make_searches([100, 100, 4000, 4000, 4000, 4000, 100, 100], player_factory)
+    s = make_searches([1641, 1936, 1791, 2314, 1930, 2258, 1402, 2090], player_factory)
     team_a = CombinedSearch(*[s[0], s[1], s[2], s[3]])
     team_b = CombinedSearch(*[s[4], s[5], s[6], s[7]])
-    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 4)
+    game = TeamMatchMaker().assign_game_quality((team_a, team_b), 4, 1000)
+
+    assert game.quality == 0.0
+
+
+def test_game_quality(player_factory):
+    s = make_searches([2420, 2022, 1820, 1777, 1342, 2141, 1937, 1275], player_factory)
+    matchmaker = TeamMatchMaker()
+    team_size = 4
+    rating_peak = 1000
+    matches, unmatched = matchmaker.find(s, team_size, rating_peak)
+
+    game = matchmaker.assign_game_quality(matches[0], team_size, rating_peak)
+    print()
+    print(matches[0])
+
+    assert game.quality == 0.0
+
+
+def test_game_quality2v2(player_factory):
+    s = make_searches([2156, 2108, 1010, 2456], player_factory)
+    matchmaker = TeamMatchMaker()
+    team_size = 2
+    rating_peak = 1000
+    matches, unmatched = matchmaker.find(s, team_size, rating_peak)
+
+    game = matchmaker.assign_game_quality(matches[0], team_size, rating_peak)
+    print()
+    print(matches[0])
 
     assert game.quality == 0.0
